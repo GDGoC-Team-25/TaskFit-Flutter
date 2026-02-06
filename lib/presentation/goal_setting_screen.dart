@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import 'main.dart';
 import 'main_shell.dart';
 
 class GoalSettingScreen extends StatelessWidget {
@@ -12,7 +11,6 @@ class GoalSettingScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('직무 목표 설정', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.person_outline))],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),

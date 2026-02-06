@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:taskfit/chat_list_screen.dart';
+import 'package:taskfit/presentation/chat_list_screen.dart';
+import 'package:taskfit/presentation/main_shell.dart';
 
 class AnalysisResultScreen extends StatelessWidget {
   const AnalysisResultScreen({super.key});
@@ -111,7 +112,7 @@ class AnalysisResultScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () => Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const ChatListScreen()),
+                MaterialPageRoute(builder: (_) => const MainShell(initialIndex: 1,)),
                 (route) => false,
               ),
               style: ElevatedButton.styleFrom(

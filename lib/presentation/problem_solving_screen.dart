@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../main.dart';
 import 'boss_chat_screen.dart';
-import 'main.dart';
 
 class ProblemSolvingScreen extends StatelessWidget {
   const ProblemSolvingScreen({super.key});
@@ -11,6 +11,7 @@ class ProblemSolvingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: const Column(
           children: [
             Text('문제 풀이', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),

@@ -1,25 +1,27 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:taskfit/presentation/profile_screen.dart';
 
 import 'chat_list_screen.dart';
 import 'dashboard_screen.dart';
 import 'home_screen.dart';
-import 'main.dart';
+import '../main.dart';
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  final int initialIndex;
+  const MainShell({super.key, this.initialIndex=0});
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
+  late int _currentIndex = widget.initialIndex;
   final List<Widget> _screens = [
     const HomeScreen(),
     const ChatListScreen(),
     const DashboardScreen(),
-    const Scaffold(body: Center(child: Text('프로필'))),
+    const ProfileScreen(),
   ];
 
   @override

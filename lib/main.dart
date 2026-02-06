@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
-import 'login_screen.dart';
+import 'package:taskfit/presentation/login_screen.dart';
 
 void main() {
   runApp(const TaskFitApp());

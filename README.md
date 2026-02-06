@@ -5,3 +5,20 @@
 기업 맞춤형 실무 과제 체험 플랫폼 TaskFit Flutter 입니다.
 
 사용자가 도전하고 싶은 해당 기업의 직무 모집 공고에 활용된 자료를 이용해 AI가 실무 과제를 생성하고, 제출 후 AI 상사 페르소나와의 질의응답을 거쳐 모의 압박 면접 상황을 시뮬레이션 하고, 해결한 실무 과제와 모의 면접을 채점 및 역량 분석을 기반으로 피드백을 제공합니다.
+
+## 제공하는 기능
+자랑할만한 3가지 UI/UX 관해 제공하는 기능을 넣어주세요!
+
+## 기술 스택
+
+| 분류 | 기술 |
+|------|------|
+| Runtime | Python 3.12, FastAPI |
+| Package Manager | uv |
+| DB | Cloud SQL (PostgreSQL) + SQLAlchemy 2.0 (async) + asyncpg |
+| Migration | Alembic |
+| AI | Google Gemini API (google-genai SDK) |
+| Auth | Google OAuth 2.0, JWT (PyJWT) |
+| Infra | Google Cloud Run, Secret Manager |
+
+추가로 README MD 넣고 싶은 후속 내용 있으면 넣어주세요!

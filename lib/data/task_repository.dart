@@ -11,7 +11,8 @@ class TaskRepository {
   // 기업 검색
   Future<List<dynamic>> searchCompanies(String query) async {
     try {
-      return await api.searchCompanies(query, 20);
+      final result = await api.searchCompanies(query, 20);
+      return result is List ? result : [];
     } catch (e) {
       print("기업 검색 실패: $e");
       return [];
@@ -21,7 +22,8 @@ class TaskRepository {
   // 직무 검색
   Future<List<dynamic>> searchJobRoles(String? category, String query) async {
     try {
-      return await api.searchJobRoles(category, query);
+      final result = await api.searchJobRoles(category, query);
+      return result is List ? result : [];
     } catch (e) {
       print("직무 검색 실패: $e");
       return [];
@@ -29,6 +31,7 @@ class TaskRepository {
   }
 
   // 과제 제출 및 스레드 생성
+  // 반환: SubmissionCreateResponse { submission, thread, first_message }
   Future<int?> submitTask(int taskId, String content) async {
     try {
       final response = await api.createSubmission(SubmissionCreateRequest(
@@ -36,7 +39,8 @@ class TaskRepository {
         content: content,
         is_draft: false,
       ));
-      return response['thread_id']; // 생성된 채팅방 ID 반환
+      // thread?.id에서 스레드 ID 추출
+      return response?['thread']?['id'];
     } catch (e) {
       print("과제 제출 실패: $e");
       return null;

@@ -7,16 +7,24 @@ class TaskViewModel extends ChangeNotifier {
   List<dynamic> tasks = [];
   bool isLoading = false;
 
+  // 선택된 목표 정보 (GoalSettingScreen에서 설정)
+  String? selectedCompanyName;
+  String? selectedJobRoleName;
+
   TaskViewModel({required this.api});
+
+  void setGoal({required String companyName, required String jobRoleName}) {
+    selectedCompanyName = companyName;
+    selectedJobRoleName = jobRoleName;
+    notifyListeners();
+  }
 
   Future<void> fetchTasks() async {
     isLoading = true;
     notifyListeners();
     try {
-      // 1. page 파라미터를 명시적으로 추가합니다. (기본값 1)
+      // TaskListResponse: { items, total, page, page_size }
       final response = await api.getTasks(page: 1);
-
-      // API 응답 구조에 따라 데이터를 리스트에 할당합니다.
       tasks = response['items'] as List<dynamic>? ?? [];
     } catch (e) {
       print("Fetch Tasks Error: $e");

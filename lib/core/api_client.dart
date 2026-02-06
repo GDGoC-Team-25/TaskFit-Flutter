@@ -14,6 +14,14 @@ class ApiClient {
         }
         return handler.next(options);
       },
+      onResponse: (response, handler) {
+        // 백엔드 표준 응답 래퍼 {"success": true, "data": ...} 자동 언래핑
+        final data = response.data;
+        if (data is Map<String, dynamic> && data.containsKey('success') && data.containsKey('data')) {
+          response.data = data['data'];
+        }
+        return handler.next(response);
+      },
       onError: (DioException e, handler) {
         print("API Error: ${e.response?.statusCode} - ${e.message}");
         return handler.next(e);

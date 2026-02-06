@@ -11,18 +11,25 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late Future<Map<String, dynamic>> _summaryFuture;
+  Future<dynamic>? _summaryFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDashboardData();
+    });
   }
 
   void _loadDashboardData() {
     final api = context.read<TaskFitApi>();
-    setState(() async {
-      _summaryFuture = await api.getDashboardSummary();
+    setState(() {
+      // 백엔드 DashboardSummaryResponse:
+      // { weekly_summary: { score_percentage, problems_solved, avg_time_minutes, weak_tag_count },
+      //   ai_insight: { improvements, weak_areas },
+      //   recent_submissions: [{ id, task_title, category, total_score, is_correct, time_spent_seconds, created_at }],
+      //   competencies: [{ company_name, job_role_name, avg_score, attempt_count, weak_tags }] }
+      _summaryFuture = api.getDashboardSummary();
     });
   }
 
@@ -43,15 +50,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: _loadDashboardData, // 새로고침 기능
+            onPressed: _loadDashboardData,
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
-      body: FutureBuilder<Map<String, dynamic>>(
+      body: FutureBuilder<dynamic>(
         future: _summaryFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (_summaryFuture == null || snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -60,9 +67,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
 
           final data = snapshot.data ?? {};
-          // 서버에서 내려오는 필드명에 맞춰 매핑 (예시 필드명 기준)
-          final insights = data['insights'] as List? ?? [];
-          final history = data['recent_history'] as List? ?? [];
+          final weeklySummary = data['weekly_summary'] ?? {};
+          final aiInsight = data['ai_insight'] ?? {};
+          final recentSubmissions = data['recent_submissions'] as List? ?? [];
+          final competencies = data['competencies'] as List? ?? [];
 
           return RefreshIndicator(
             onRefresh: () async => _loadDashboardData(),
@@ -70,7 +78,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 // 1. 학습 요약 카드
-                _buildSummaryCard(data),
+                _buildSummaryCard(weeklySummary),
 
                 const SizedBox(height: 24),
                 const Text(
@@ -79,34 +87,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // 2. 인사이트 리스트 (동적 생성)
-                if (insights.isEmpty)
+                // 2. AI 인사이트
+                if (aiInsight['improvements'] == null && aiInsight['weak_areas'] == null)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
                     child: Text('충분한 데이터가 쌓이면 AI 인사이트가 제공됩니다.',
                         textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
                   )
-                else
-                  ...insights.map((item) => _buildInsightCard(
-                    item['type'] == 'improvement' ? Icons.bolt : Icons.warning_amber,
-                    item['type'] == 'improvement' ? Colors.blue : Colors.orange,
-                    item['title'] ?? '',
-                    item['description'] ?? '',
-                  )),
+                else ...[
+                  if (aiInsight['improvements'] != null)
+                    _buildInsightCard(Icons.bolt, Colors.blue, '개선 방향', aiInsight['improvements']),
+                  if (aiInsight['weak_areas'] != null)
+                    _buildInsightCard(Icons.warning_amber, Colors.orange, '약점 분야', aiInsight['weak_areas']),
+                ],
+
+                // 3. 역량 요약
+                if (competencies.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Text('역량 현황', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  ...competencies.map((c) => _buildCompetencyCard(c)),
+                ],
 
                 const SizedBox(height: 24),
                 const Text('최근 풀이 기록', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
 
-                // 3. 최근 풀이 기록 (동적 생성)
-                if (history.isEmpty)
-                  const Center(child: Text('최근 풀이한 문제가 없습니다.'))
+                // 4. 최근 풀이 기록
+                if (recentSubmissions.isEmpty)
+                  const Center(child: Text('최근 풀이한 문제가 없습니다.', style: TextStyle(color: Colors.grey)))
                 else
-                  ...history.map((item) => _buildHistoryItem(
-                    item['task_title'] ?? '',
-                    item['is_correct'] == true ? '정답' : '오답',
-                    item['time_spent'] ?? '0분',
-                  )),
+                  ...recentSubmissions.map((item) => _buildHistoryItem(item)),
               ],
             ),
           );
@@ -115,7 +126,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSummaryCard(Map<String, dynamic> data) {
+  Widget _buildSummaryCard(Map<String, dynamic> summary) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -130,21 +141,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
+              const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '이번 주 학습 요약',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '목표 직무: ${data['target_job'] ?? '설정 전'}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
               Text(
-                '${data['achievement_rate'] ?? 0}%',
+                '${(summary['score_percentage'] ?? 0).toStringAsFixed(0)}%',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -157,9 +164,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildSummaryStat('${data['solved_count'] ?? 0}', '풀이 문제'),
-              _buildSummaryStat('${data['avg_time'] ?? 0}', '평균 소요(분)'),
-              _buildSummaryStat('${data['weak_tag_count'] ?? 0}', '약점 태그'),
+              _buildSummaryStat('${summary['problems_solved'] ?? 0}', '풀이 문제'),
+              _buildSummaryStat('${(summary['avg_time_minutes'] ?? 0).toStringAsFixed(0)}', '평균 소요(분)'),
+              _buildSummaryStat('${summary['weak_tag_count'] ?? 0}', '약점 태그'),
             ],
           ),
         ],
@@ -202,7 +209,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildHistoryItem(String title, String status, String time) {
+  Widget _buildCompetencyCard(dynamic competency) {
+    final weakTags = competency['weak_tags'] as List? ?? [];
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade100),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${competency['company_name']} · ${competency['job_role_name']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                Text(
+                  '${(competency['avg_score'] ?? 0).toStringAsFixed(0)}점',
+                  style: const TextStyle(color: Color(0xFF3B5BFF), fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '시도 ${competency['attempt_count'] ?? 0}회',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            if (weakTags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 4,
+                children: weakTags.map<Widget>((tag) => Chip(
+                  label: Text(tag.toString(), style: const TextStyle(fontSize: 10)),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: Colors.orange.shade50,
+                  side: BorderSide.none,
+                )).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 백엔드 RecentSubmission: { id, task_title, category, total_score, is_correct, time_spent_seconds, created_at }
+  Widget _buildHistoryItem(dynamic item) {
+    final title = item['task_title'] ?? '';
+    final totalScore = item['total_score'];
+    final timeSpent = item['time_spent_seconds'];
+    final String timeText = timeSpent != null ? '${(timeSpent / 60).toStringAsFixed(0)}분' : '-';
+    final String scoreText = totalScore != null ? '$totalScore점' : '채점 전';
+
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 8),
@@ -221,14 +287,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(width: 8),
           Text(
-            status,
+            scoreText,
             style: TextStyle(
-              color: status == '정답' ? Colors.green : Colors.red,
+              color: totalScore != null ? const Color(0xFF3B5BFF) : Colors.grey,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(width: 12),
-          Text(time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          Text(timeText, style: const TextStyle(color: Colors.grey, fontSize: 12)),
         ],
       ),
     );

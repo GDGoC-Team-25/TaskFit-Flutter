@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/api_models.dart';
 import '../data/taskfit_api.dart';
+import '../task_view_model.dart';
 import 'main_shell.dart';
 
 class GoalSettingScreen extends StatefulWidget {
@@ -14,7 +15,7 @@ class GoalSettingScreen extends StatefulWidget {
 class _GoalSettingScreenState extends State<GoalSettingScreen> {
   // 선택된 데이터 관리
   dynamic _selectedCompany; // {id, name}
-  dynamic _selectedJobRole; // {id, name}
+  dynamic _selectedJobRole; // {id, name, category}
   bool _isGenerating = false;
 
   @override
@@ -42,7 +43,6 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
                 children: [
                   _buildSentencePreview('직무', _selectedJobRole?['name']),
                   const SizedBox(height: 16),
-                  // 직무 검색 자동완성
                   _buildJobAutocomplete(api),
                 ],
               ),
@@ -57,7 +57,6 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
                 children: [
                   _buildSentencePreview('회사', _selectedCompany?['name']),
                   const SizedBox(height: 16),
-                  // 회사 검색 자동완성
                   _buildCompanyAutocomplete(api),
                 ],
               ),
@@ -115,14 +114,21 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
   }
 
   // 직무 검색 자동완성
+  // 백엔드 JobRoleResponse: { id, category, name, description }
   Widget _buildJobAutocomplete(TaskFitApi api) {
     return Autocomplete<Map<String, dynamic>>(
       displayStringForOption: (option) => option['name'] as String,
       optionsBuilder: (TextEditingValue textEditingValue) async {
         if (textEditingValue.text.isEmpty) return const Iterable.empty();
-        // API 호출 결과가 List<dynamic>이므로 cast가 필요할 수 있습니다.
-        final results = await api.searchJobRoles(null, textEditingValue.text);
-        return results.cast<Map<String, dynamic>>();
+        try {
+          final results = await api.searchJobRoles(null, textEditingValue.text);
+          if (results is List) {
+            return results.cast<Map<String, dynamic>>();
+          }
+          return const Iterable.empty();
+        } catch (e) {
+          return const Iterable.empty();
+        }
       },
       onSelected: (selection) => setState(() => _selectedJobRole = selection),
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
@@ -140,14 +146,21 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
   }
 
   // 회사 검색 자동완성
+  // 백엔드 CompanyResponse: { id, name, description, logo_url }
   Widget _buildCompanyAutocomplete(TaskFitApi api) {
     return Autocomplete<Map<String, dynamic>>(
       displayStringForOption: (option) => option['name'] as String,
       optionsBuilder: (TextEditingValue textEditingValue) async {
         if (textEditingValue.text.isEmpty) return const Iterable.empty();
-        // API 호출 결과가 List<dynamic>이므로 cast가 필요할 수 있습니다.
-        final results = await api.searchJobRoles(null, textEditingValue.text);
-        return results.cast<Map<String, dynamic>>();
+        try {
+          final results = await api.searchCompanies(textEditingValue.text, 10);
+          if (results is List) {
+            return results.cast<Map<String, dynamic>>();
+          }
+          return const Iterable.empty();
+        } catch (e) {
+          return const Iterable.empty();
+        }
       },
       onSelected: (selection) => setState(() => _selectedCompany = selection),
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
@@ -171,22 +184,28 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
           : () async {
         setState(() => _isGenerating = true);
         try {
-          // 실제 선택된 ID를 전달합니다.
           await api.generateTasks(TaskGenerateRequest(
             company_id: _selectedCompany['id'],
             job_role_id: _selectedJobRole['id'],
             count: 3,
           ));
 
+          // TaskViewModel에 선택된 목표 정보 저장
           if (mounted) {
+            context.read<TaskViewModel>().setGoal(
+              companyName: _selectedCompany['name'],
+              jobRoleName: _selectedJobRole['name'],
+            );
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainShell()));
           }
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("과제 생성에 실패했습니다. 정보를 다시 확인해주세요.")),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("과제 생성에 실패했습니다. 정보를 다시 확인해주세요.")),
+            );
+          }
         } finally {
-          setState(() => _isGenerating = false);
+          if (mounted) setState(() => _isGenerating = false);
         }
       },
       style: ElevatedButton.styleFrom(

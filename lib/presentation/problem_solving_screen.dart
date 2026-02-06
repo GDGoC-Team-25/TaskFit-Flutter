@@ -5,7 +5,7 @@ import '../data/taskfit_api.dart';
 import 'boss_chat_screen.dart';
 
 class ProblemSolvingScreen extends StatefulWidget {
-  final int taskId; // HomeScreen에서 넘겨받은 ID
+  final int taskId;
 
   const ProblemSolvingScreen({super.key, required this.taskId});
 
@@ -15,14 +15,60 @@ class ProblemSolvingScreen extends StatefulWidget {
 
 class _ProblemSolvingScreenState extends State<ProblemSolvingScreen> {
   final TextEditingController _answerController = TextEditingController();
-  late Future<Map<String, dynamic>> _taskDetailFuture;
+  Future<dynamic>? _taskDetailFuture;
   bool _isSubmitting = false;
+  bool _isSaving = false;
 
   @override
-  Future<void> initState() async {
+  void initState() {
     super.initState();
-    // 1. 화면 진입 시 해당 과제의 상세 지문을 불러옵니다.
-    _taskDetailFuture = await context.read<TaskFitApi>().getTaskDetail(widget.taskId);
+    // initState에서는 async 사용 불가 - addPostFrameCallback으로 처리
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTaskDetail();
+    });
+  }
+
+  void _loadTaskDetail() {
+    final api = context.read<TaskFitApi>();
+    setState(() {
+      // 백엔드 TaskDetailResponse:
+      // { id, title, description, category, difficulty, estimated_minutes,
+      //   answer_type, tech_stack, company: {id, name}, job_role: {id, name},
+      //   created_at, my_submission: {id, status, is_draft} | null }
+      _taskDetailFuture = api.getTaskDetail(widget.taskId);
+    });
+  }
+
+  // 임시 저장
+  Future<void> _saveDraft() async {
+    final content = _answerController.text.trim();
+    if (content.isEmpty) return;
+
+    setState(() => _isSaving = true);
+    final api = context.read<TaskFitApi>();
+
+    try {
+      await api.createSubmission(
+        SubmissionCreateRequest(
+          task_id: widget.taskId,
+          content: content,
+          is_draft: true,
+        ),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('임시 저장되었습니다.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장에 실패했습니다.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   // 제출 로직
@@ -39,7 +85,8 @@ class _ProblemSolvingScreenState extends State<ProblemSolvingScreen> {
     final api = context.read<TaskFitApi>();
 
     try {
-      // 2. 서버에 답변 제출 (is_draft: false로 보내면 AI 스레드가 생성됩니다)
+      // 백엔드 SubmissionCreateResponse:
+      // { submission: {...}, thread: {id, persona_name, ...} | null, first_message: {...} | null }
       final response = await api.createSubmission(
         SubmissionCreateRequest(
           task_id: widget.taskId,
@@ -48,8 +95,9 @@ class _ProblemSolvingScreenState extends State<ProblemSolvingScreen> {
         ),
       );
 
-      // 3. 제출 성공 시 서버에서 받은 thread_id를 가지고 채팅방으로 이동
-      final int? threadId = response['thread_id'];
+      final threadData = response?['thread'];
+      final int? threadId = threadData?['id'];
+
       if (threadId != null && mounted) {
         Navigator.pushReplacement(
           context,
@@ -75,7 +123,7 @@ class _ProblemSolvingScreenState extends State<ProblemSolvingScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: FutureBuilder<Map<String, dynamic>>(
+        title: FutureBuilder<dynamic>(
           future: _taskDetailFuture,
           builder: (context, snapshot) {
             final data = snapshot.data;
@@ -83,7 +131,9 @@ class _ProblemSolvingScreenState extends State<ProblemSolvingScreen> {
               children: [
                 const Text('문제 풀이', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 Text(
-                  data != null ? '${data['company_name']} · ${data['job_role_name']}' : '로딩 중...',
+                  data != null
+                      ? '${data['company']?['name'] ?? ''} · ${data['job_role']?['name'] ?? ''}'
+                      : '로딩 중...',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
@@ -91,13 +141,13 @@ class _ProblemSolvingScreenState extends State<ProblemSolvingScreen> {
           },
         ),
       ),
-      body: FutureBuilder<Map<String, dynamic>>(
+      body: FutureBuilder<dynamic>(
         future: _taskDetailFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
+          if (snapshot.hasError || snapshot.data == null) {
             return const Center(child: Text('문제를 불러오지 못했습니다.'));
           }
 
@@ -121,11 +171,11 @@ class _ProblemSolvingScreenState extends State<ProblemSolvingScreen> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              '#${task['category'] ?? '기술면접'}',
+                              '#${task['category'] ?? ''}',
                               style: const TextStyle(color: Color(0xFF3B5BFF), fontSize: 12),
                             ),
                           ),
-                          const Text('15분 예상', style: TextStyle(color: Colors.grey)),
+                          Text('${task['estimated_minutes'] ?? 15}분 예상', style: const TextStyle(color: Colors.grey)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -152,7 +202,6 @@ class _ProblemSolvingScreenState extends State<ProblemSolvingScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('답변 작성', style: TextStyle(fontWeight: FontWeight.bold)),
-                          Text('실시간 저장 중', style: TextStyle(color: Colors.grey, fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -179,13 +228,13 @@ class _ProblemSolvingScreenState extends State<ProblemSolvingScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () {
-                          // 임시 저장 로직 (필요 시 is_draft: true로 API 호출 가능)
-                        },
+                        onPressed: _isSaving ? null : _saveDraft,
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: const Text('저장'),
+                        child: _isSaving
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('저장'),
                       ),
                     ),
                     const SizedBox(width: 12),

@@ -87,12 +87,12 @@ class _TaskFitApi implements TaskFitApi {
   }
 
   @override
-  Future<List<String>> getJobCategories() async {
+  Future<dynamic> getJobCategories() async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
-    final _options = _setStreamType<List<String>>(
+    final _options = _setStreamType<dynamic>(
       Options(method: 'GET', headers: _headers, extra: _extra)
           .compose(
             _dio.options,
@@ -102,14 +102,8 @@ class _TaskFitApi implements TaskFitApi {
           )
           .copyWith(baseUrl: _combineBaseUrls(_dio.options.baseUrl, baseUrl)),
     );
-    final _result = await _dio.fetch<List<dynamic>>(_options);
-    late List<String> _value;
-    try {
-      _value = _result.data!.cast<String>();
-    } on Object catch (e, s) {
-      errorLogger?.logError(e, s, _options, response: _result);
-      rethrow;
-    }
+    final _result = await _dio.fetch(_options);
+    final _value = _result.data;
     return _value;
   }
 
@@ -139,13 +133,13 @@ class _TaskFitApi implements TaskFitApi {
   }
 
   @override
-  Future<void> generateTasks(TaskGenerateRequest request) async {
+  Future<dynamic> generateTasks(TaskGenerateRequest request) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
     final _data = <String, dynamic>{};
     _data.addAll(request.toJson());
-    final _options = _setStreamType<void>(
+    final _options = _setStreamType<dynamic>(
       Options(method: 'POST', headers: _headers, extra: _extra)
           .compose(
             _dio.options,
@@ -155,15 +149,28 @@ class _TaskFitApi implements TaskFitApi {
           )
           .copyWith(baseUrl: _combineBaseUrls(_dio.options.baseUrl, baseUrl)),
     );
-    await _dio.fetch<void>(_options);
+    final _result = await _dio.fetch(_options);
+    final _value = _result.data;
+    return _value;
   }
 
   @override
-  Future<dynamic> getTasks({required int page, int? companyId}) async {
+  Future<dynamic> getTasks({
+    required int page,
+    int? pageSize,
+    int? companyId,
+    int? jobRoleId,
+    String? category,
+    String? difficulty,
+  }) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{
       r'page': page,
+      r'page_size': pageSize,
       r'company_id': companyId,
+      r'job_role_id': jobRoleId,
+      r'category': category,
+      r'difficulty': difficulty,
     };
     queryParameters.removeWhere((k, v) => v == null);
     final _headers = <String, dynamic>{};
@@ -227,6 +234,31 @@ class _TaskFitApi implements TaskFitApi {
   }
 
   @override
+  Future<dynamic> updateSubmission(
+    int submissionId,
+    SubmissionUpdateRequest request,
+  ) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    final _data = <String, dynamic>{};
+    _data.addAll(request.toJson());
+    final _options = _setStreamType<dynamic>(
+      Options(method: 'PUT', headers: _headers, extra: _extra)
+          .compose(
+            _dio.options,
+            '/submissions/${submissionId}',
+            queryParameters: queryParameters,
+            data: _data,
+          )
+          .copyWith(baseUrl: _combineBaseUrls(_dio.options.baseUrl, baseUrl)),
+    );
+    final _result = await _dio.fetch(_options);
+    final _value = _result.data;
+    return _value;
+  }
+
+  @override
   Future<dynamic> getSubmission(int submissionId) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
@@ -248,9 +280,13 @@ class _TaskFitApi implements TaskFitApi {
   }
 
   @override
-  Future<dynamic> getThreads({required int page}) async {
+  Future<dynamic> getThreads({required int page, int? pageSize}) async {
     final _extra = <String, dynamic>{};
-    final queryParameters = <String, dynamic>{r'page': page};
+    final queryParameters = <String, dynamic>{
+      r'page': page,
+      r'page_size': pageSize,
+    };
+    queryParameters.removeWhere((k, v) => v == null);
     final _headers = <String, dynamic>{};
     const Map<String, dynamic>? _data = null;
     final _options = _setStreamType<dynamic>(

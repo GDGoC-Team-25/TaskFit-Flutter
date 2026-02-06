@@ -17,7 +17,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // 화면 진입 시 초기 데이터 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TaskViewModel>().fetchTasks();
     });
@@ -53,8 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. 현재 설정된 목표 표시 (첫 번째 과제 정보 기반 혹은 프로필 정보 기반)
-              _buildTargetChip(viewModel.tasks.isNotEmpty ? viewModel.tasks.first : null),
+              // 1. 현재 설정된 목표 표시 (TaskViewModel에서 가져옴)
+              _buildTargetChip(viewModel),
 
               const SizedBox(height: 24),
               Row(
@@ -96,10 +95,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTargetChip(dynamic task) {
+  Widget _buildTargetChip(TaskViewModel viewModel) {
     String label = '목표를 설정해주세요';
-    if (task != null) {
-      label = '${task['company_name'] ?? '회사'} > ${task['job_role_name'] ?? '직무'}';
+    if (viewModel.selectedCompanyName != null && viewModel.selectedJobRoleName != null) {
+      label = '${viewModel.selectedCompanyName} > ${viewModel.selectedJobRoleName}';
     }
     return Chip(
       avatar: const Icon(Icons.business, size: 16, color: Color(0xFF3B5BFF)),
@@ -121,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 백엔드 TaskListItem: { id, title, category, difficulty, estimated_minutes, answer_type, created_at, has_submission }
   Widget _buildProblemCard(BuildContext context, dynamic task) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const Spacer(),
                 Text(
-                  task['created_at']?.toString().split('T')[0] ?? '2025.03',
+                  task['created_at']?.toString().split('T')[0] ?? '',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
@@ -177,17 +177,28 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const Icon(Icons.timer_outlined, size: 16, color: Colors.grey),
                 const SizedBox(width: 4),
-                const Text(
-                  '15분 예상', // 필요 시 서버 데이터 연결
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                Text(
+                  '${task['estimated_minutes'] ?? 15}분 예상',
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
                 ),
                 const SizedBox(width: 12),
                 const Icon(Icons.edit_note, size: 16, color: Colors.grey),
                 const SizedBox(width: 4),
-                const Text(
-                  '서술형',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                Text(
+                  task['answer_type'] == 'code' ? '코드형' : '서술형',
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
                 ),
+                if (task['has_submission'] == true) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('제출됨', style: TextStyle(color: Colors.blue, fontSize: 11)),
+                  ),
+                ],
                 const Spacer(),
                 ElevatedButton(
                   onPressed: () => Navigator.push(

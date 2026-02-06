@@ -69,6 +69,22 @@ Map<String, dynamic> _$SubmissionCreateRequestToJson(
   'time_spent_seconds': instance.time_spent_seconds,
 };
 
+SubmissionUpdateRequest _$SubmissionUpdateRequestFromJson(
+  Map<String, dynamic> json,
+) => SubmissionUpdateRequest(
+  content: json['content'] as String,
+  is_draft: json['is_draft'] as bool? ?? false,
+  time_spent_seconds: (json['time_spent_seconds'] as num?)?.toInt(),
+);
+
+Map<String, dynamic> _$SubmissionUpdateRequestToJson(
+  SubmissionUpdateRequest instance,
+) => <String, dynamic>{
+  'content': instance.content,
+  'is_draft': instance.is_draft,
+  'time_spent_seconds': instance.time_spent_seconds,
+};
+
 MessageCreateRequest _$MessageCreateRequestFromJson(
   Map<String, dynamic> json,
 ) => MessageCreateRequest(content: json['content'] as String);
@@ -87,33 +103,3 @@ ProfileUpdateRequest _$ProfileUpdateRequestFromJson(
 Map<String, dynamic> _$ProfileUpdateRequestToJson(
   ProfileUpdateRequest instance,
 ) => <String, dynamic>{'name': instance.name, 'bio': instance.bio};
-
-EvaluationDetail _$EvaluationDetailFromJson(Map<String, dynamic> json) =>
-    EvaluationDetail(
-      id: (json['id'] as num).toInt(),
-      score: (json['score'] as num).toInt(),
-      title: json['title'] as String,
-      sub_title: json['sub_title'] as String,
-      summary: json['summary'] as String,
-      details: (json['details'] as List<dynamic>)
-          .map((e) => AnalysisItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-
-Map<String, dynamic> _$EvaluationDetailToJson(EvaluationDetail instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'score': instance.score,
-      'title': instance.title,
-      'sub_title': instance.sub_title,
-      'summary': instance.summary,
-      'details': instance.details,
-    };
-
-AnalysisItem _$AnalysisItemFromJson(Map<String, dynamic> json) => AnalysisItem(
-  type: json['type'] as String,
-  content: json['content'] as String,
-);
-
-Map<String, dynamic> _$AnalysisItemToJson(AnalysisItem instance) =>
-    <String, dynamic>{'type': instance.type, 'content': instance.content};

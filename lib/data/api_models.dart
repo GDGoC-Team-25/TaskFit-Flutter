@@ -51,6 +51,15 @@ class SubmissionCreateRequest {
   Map<String, dynamic> toJson() => _$SubmissionCreateRequestToJson(this);
 }
 
+@JsonSerializable()
+class SubmissionUpdateRequest {
+  final String content;
+  final bool is_draft;
+  final int? time_spent_seconds;
+  SubmissionUpdateRequest({required this.content, this.is_draft = false, this.time_spent_seconds});
+  Map<String, dynamic> toJson() => _$SubmissionUpdateRequestToJson(this);
+}
+
 // --- 질의응답(채팅) 관련 ---
 @JsonSerializable()
 class MessageCreateRequest {
@@ -66,34 +75,4 @@ class ProfileUpdateRequest {
   final String? bio;
   ProfileUpdateRequest({this.name, this.bio});
   Map<String, dynamic> toJson() => _$ProfileUpdateRequestToJson(this);
-}
-
-@JsonSerializable()
-class EvaluationDetail {
-  final int id;
-  final int score;
-  final String title;
-  final String sub_title;
-  final String summary;
-  final List<AnalysisItem> details;
-
-  EvaluationDetail({
-    required this.id,
-    required this.score,
-    required this.title,
-    required this.sub_title,
-    required this.summary,
-    required this.details,
-  });
-
-  factory EvaluationDetail.fromJson(Map<String, dynamic> json) => _$EvaluationDetailFromJson(json);
-}
-
-@JsonSerializable()
-class AnalysisItem {
-  final String type; // 'POSITIVE' or 'NEGATIVE'
-  final String content;
-
-  AnalysisItem({required this.type, required this.content});
-  factory AnalysisItem.fromJson(Map<String, dynamic> json) => _$AnalysisItemFromJson(json);
 }

@@ -13,27 +13,26 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late Future<Map<String, dynamic>> _profileDataFuture;
+  Future<Map<String, dynamic>>? _profileDataFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadProfileData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfileData();
+    });
   }
 
-  // 프로필과 대시보드 요약을 동시에 불러옵니다.
+  // 백엔드 ProfileResponse:
+  // { user: { id, email, name, bio, profile_image },
+  //   stats: { total_solved, avg_score, rank_percentile },
+  //   recent_submissions: [{ id, task_title, total_score, created_at }] }
   void _loadProfileData() {
     final api = context.read<TaskFitApi>();
     setState(() {
-      _profileDataFuture = Future.wait([
-        api.getProfile(),
-        api.getDashboardSummary(),
-      ]).then((results) {
-        // 두 API 결과를 하나로 합칩니다.
-        return {
-          ...results[0],
-          ...results[1],
-        };
+      _profileDataFuture = api.getProfile().then((profileData) {
+        // profileData는 이미 언래핑된 ProfileResponse
+        return Map<String, dynamic>.from(profileData ?? {});
       });
     });
   }
@@ -70,19 +69,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: FutureBuilder<Map<String, dynamic>>(
         future: _profileDataFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (_profileDataFuture == null || snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
             return const Center(child: Text('프로필 정보를 불러오지 못했습니다.'));
           }
 
-          final data = snapshot.data!;
+          final data = snapshot.data ?? {};
+          final user = data['user'] ?? {};
+          final stats = data['stats'] ?? {};
+          final recentSubmissions = data['recent_submissions'] as List? ?? [];
 
           return SingleChildScrollView(
             child: Column(
               children: [
-                // 1. 사용자 상단 정보 섹션 (API 데이터 반영)
+                // 1. 사용자 상단 정보 섹션
                 Container(
                   padding: const EdgeInsets.all(24),
                   color: Colors.white,
@@ -91,27 +93,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       CircleAvatar(
                         radius: 45,
                         backgroundColor: const Color(0xFFE8F0FF),
-                        backgroundImage: data['profile_image'] != null
-                            ? NetworkImage(data['profile_image'])
+                        backgroundImage: user['profile_image'] != null
+                            ? NetworkImage(user['profile_image'])
                             : null,
-                        child: data['profile_image'] == null
+                        child: user['profile_image'] == null
                             ? const Icon(Icons.person, size: 50, color: Color(0xFF3B5BFF))
                             : null,
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        data['name'] ?? '사용자',
+                        user['name'] ?? '사용자',
                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        data['bio'] ?? '목표를 설정하고 실무를 경험해보세요!',
+                        user['bio'] ?? '목표를 설정하고 실무를 경험해보세요!',
                         style: const TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: () {
-                          // TODO: 프로필 수정 다이얼로그나 페이지 연결 (PATCH /profile)
+                          _showEditProfileDialog(context, user);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFF1F4FF),
@@ -127,7 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // 2. 학습 현황 요약 카드 (Dashboard API 데이터 반영)
+                // 2. 학습 현황 요약 카드
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
@@ -139,14 +141,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _ProfileStatItem(label: '해결한 문제', value: '${data['solved_count'] ?? 0}'),
+                        _ProfileStatItem(label: '해결한 문제', value: '${stats['total_solved'] ?? 0}'),
                         const VerticalDivider(thickness: 1, width: 1, color: Color(0xFFF1F1F1)),
-                        _ProfileStatItem(label: '평균 점수', value: '${data['avg_score'] ?? 0}점'),
+                        _ProfileStatItem(label: '평균 점수', value: '${(stats['avg_score'] ?? 0).toStringAsFixed(0)}점'),
                         const VerticalDivider(thickness: 1, width: 1, color: Color(0xFFF1F1F1)),
                         _ProfileStatItem(
                           label: '내 순위',
                           style: const TextStyle(color: Color(0xFF3B5BFF), fontWeight: FontWeight.bold),
-                          value: '상위 ${data['rank_percent'] ?? '-'}%',
+                          value: stats['rank_percentile'] != null
+                              ? '상위 ${stats['rank_percentile'].toStringAsFixed(0)}%'
+                              : '-',
                         ),
                       ],
                     ),
@@ -154,20 +158,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // 3. 메뉴 리스트 섹션
-                _buildMenuSection('나의 학습 기록', [
-                  _MenuTile(icon: Icons.bookmark_border, title: '저장한 문제 목록', count: '${data['bookmark_count'] ?? 0}'),
-                  _MenuTile(icon: Icons.history, title: '최근 응시 기록', onTap: () {}),
-                  _MenuTile(icon: Icons.note_add_outlined, title: '오답 노트', onTap: () {}),
-                ]),
+                // 3. 최근 제출 기록
+                if (recentSubmissions.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('최근 풀이 기록', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    ),
+                  ),
+                  ...recentSubmissions.map((sub) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: Text(sub['task_title'] ?? '', overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500))),
+                        Text('${sub['total_score'] ?? '-'}점', style: const TextStyle(color: Color(0xFF3B5BFF), fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )),
+                ],
+
                 const SizedBox(height: 12),
+
+                // 4. 메뉴 리스트 섹션
                 _buildMenuSection('계정 설정', [
                   _MenuTile(icon: Icons.notifications_none, title: '알림 설정', onTap: () {}),
-                  _MenuTile(icon: Icons.lock_outline, title: '보안 및 인증', onTap: () {}),
                   _MenuTile(icon: Icons.help_outline, title: '고객센터 / 도움말', onTap: () {}),
                 ]),
 
-                // 4. 로그아웃 버튼
+                // 5. 로그아웃 버튼
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32),
                   child: TextButton(
@@ -180,6 +205,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showEditProfileDialog(BuildContext context, Map<String, dynamic> user) {
+    final nameController = TextEditingController(text: user['name'] ?? '');
+    final bioController = TextEditingController(text: user['bio'] ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('프로필 수정'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: '이름'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: bioController,
+              decoration: const InputDecoration(labelText: '자기소개'),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          ElevatedButton(
+            onPressed: () async {
+              final api = context.read<TaskFitApi>();
+              try {
+                await api.updateProfile(ProfileUpdateRequest(
+                  name: nameController.text.isNotEmpty ? nameController.text : null,
+                  bio: bioController.text.isNotEmpty ? bioController.text : null,
+                ));
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  _loadProfileData();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('프로필 수정에 실패했습니다.')),
+                  );
+                }
+              }
+            },
+            child: const Text('저장'),
+          ),
+        ],
       ),
     );
   }

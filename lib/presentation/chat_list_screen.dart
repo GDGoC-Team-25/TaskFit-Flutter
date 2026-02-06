@@ -12,19 +12,22 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  late Future<Map<String, dynamic>> _threadsFuture;
+  Future<dynamic>? _threadsFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadThreads();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadThreads();
+    });
   }
 
-  // 데이터 새로고침을 위한 로드 함수
   void _loadThreads() {
     final api = context.read<TaskFitApi>();
-    setState(() async {
-      _threadsFuture = await api.getThreads(page: 1);
+    setState(() {
+      // 백엔드 ThreadListResponse:
+      // { items: [ThreadListItem], total, page, page_size }
+      _threadsFuture = api.getThreads(page: 1);
     });
   }
 
@@ -40,7 +43,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         automaticallyImplyLeading: false,
         centerTitle: true,
         title: const Text(
-          '채팅 목록',
+          '직무대화',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -50,15 +53,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ),
         ],
       ),
-      // Pull to Refresh 기능 추가
       body: RefreshIndicator(
         onRefresh: () async {
           _loadThreads();
         },
-        child: FutureBuilder<Map<String, dynamic>>(
+        child: FutureBuilder<dynamic>(
           future: _threadsFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            if (_threadsFuture == null || snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -66,7 +68,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
               return const Center(child: Text('목록을 불러오는데 실패했습니다.'));
             }
 
-            final items = snapshot.data?['items'] as List? ?? [];
+            final data = snapshot.data;
+            final items = data?['items'] as List? ?? [];
 
             if (items.isEmpty) {
               return _buildEmptyState();
@@ -76,16 +79,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
               padding: const EdgeInsets.all(16),
               itemCount: items.length,
               itemBuilder: (context, index) {
+                // 백엔드 ThreadListItem:
+                // { id, persona_name, persona_department, topic_tag, status,
+                //   total_questions, asked_count, message_count,
+                //   last_message_preview, company_name, job_role_name,
+                //   created_at, updated_at }
                 final thread = items[index];
-                return _buildChatListItem(
-                  context,
-                  thread['id'],
-                  thread['title'] ?? '새로운 대화',
-                  thread['job_role_name'] ?? '직무 미지정',
-                  thread['last_message'] ?? '최근 메시지가 없습니다.',
-                  thread['updated_at'] ?? '',
-                  thread['message_count'] ?? 0,
-                );
+                return _buildChatListItem(context, thread);
               },
             );
           },
@@ -94,7 +94,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  // 채팅 내역이 없을 때 표시할 화면
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -109,15 +108,19 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  Widget _buildChatListItem(
-      BuildContext context,
-      int threadId,
-      String name,
-      String tag,
-      String msg,
-      String date,
-      int count,
-      ) {
+  Widget _buildChatListItem(BuildContext context, dynamic thread) {
+    final int threadId = thread['id'];
+    final String personaName = thread['persona_name'] ?? '팀장';
+    final String topicTag = thread['topic_tag'] ?? '';
+    final String companyName = thread['company_name'] ?? '';
+    final String jobRoleName = thread['job_role_name'] ?? '';
+    final String lastMessage = thread['last_message_preview'] ?? '메시지가 없습니다.';
+    final String updatedAt = (thread['updated_at'] ?? '').toString();
+    final int messageCount = thread['message_count'] ?? 0;
+    final String status = thread['status'] ?? 'questioning';
+    final int askedCount = thread['asked_count'] ?? 0;
+    final int totalQuestions = thread['total_questions'] ?? 0;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       color: Colors.white,
@@ -146,32 +149,40 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    name,
+                    '$personaName (AI)',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(4),
+                  if (topicTag.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        topicTag,
+                        style: TextStyle(color: Colors.purple.shade400, fontSize: 10),
+                      ),
                     ),
-                    child: Text(
-                      tag,
-                      style: TextStyle(color: Colors.purple.shade400, fontSize: 10),
-                    ),
-                  ),
                   const Spacer(),
-                  Text(
-                    // 날짜 데이터가 있다면 포맷팅 필요 (여기선 간단히 표시)
-                    date.split('T')[0],
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
+                  if (updatedAt.isNotEmpty)
+                    Text(
+                      updatedAt.split('T')[0],
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                 ],
               ),
+              if (companyName.isNotEmpty || jobRoleName.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '$companyName · $jobRoleName',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
               const SizedBox(height: 12),
               Text(
-                msg,
+                lastMessage,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 13, color: Colors.black54),
@@ -180,9 +191,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '대화 $count건',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  Row(
+                    children: [
+                      Text(
+                        '대화 $messageCount건',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: status == 'completed' ? Colors.green.shade50 : Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          status == 'completed' ? '완료 ($askedCount/$totalQuestions)' : '진행중 ($askedCount/$totalQuestions)',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: status == 'completed' ? Colors.green : Colors.orange,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const Text(
                     '대화 보기 >',

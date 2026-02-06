@@ -22,7 +22,9 @@ class AuthService {
         googleProvider.addScope('profile');
 
         userCredential = await _auth.signInWithPopup(googleProvider);
-        idToken = await userCredential.user?.getIdToken();
+        // OAuth credential에서 Google ID 토큰 추출 (Firebase 토큰이 아닌 Google 토큰)
+        final oauthCredential = userCredential.credential as OAuthCredential?;
+        idToken = oauthCredential?.idToken;
       } else {
         // 모바일: google_sign_in 패키지 사용
         final googleSignIn = GoogleSignIn.instance;

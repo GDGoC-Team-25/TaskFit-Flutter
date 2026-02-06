@@ -1,4 +1,4 @@
-# TaskFit API
+# TaskFit Flutter
 
 ### " 진짜 실무 경험을 제공해 드립니다. "
 
@@ -20,5 +20,9 @@
 | AI | Google Gemini API (google-genai SDK) |
 | Auth | Google OAuth 2.0, JWT (PyJWT) |
 | Infra | Google Cloud Run, Secret Manager |
+
+
+## TODO
+미래에 구현하고 싶은 부분을 적어주세요! (2가지 이상정도..?)
 
 추가로 README MD 넣고 싶은 후속 내용 있으면 넣어주세요!

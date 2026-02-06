@@ -1,16 +1,7 @@
-# taskfit
+# TaskFit API
 
-taskfit
+### " 진짜 실무 경험을 제공해 드립니다. "
 
-## Getting Started
+기업 맞춤형 실무 과제 체험 플랫폼 TaskFit Flutter 입니다.
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+사용자가 도전하고 싶은 해당 기업의 직무 모집 공고에 활용된 자료를 이용해 AI가 실무 과제를 생성하고, 제출 후 AI 상사 페르소나와의 질의응답을 거쳐 모의 압박 면접 상황을 시뮬레이션 하고, 해결한 실무 과제와 모의 면접을 채점 및 역량 분석을 기반으로 피드백을 제공합니다.

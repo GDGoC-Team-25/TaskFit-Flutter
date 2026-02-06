@@ -1,18 +1,29 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:taskfit/presentation/login_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'package:taskfit/task_view_model.dart';
+import 'core/api_client.dart';
+import 'data/taskfit_api.dart';
 
+import 'presentation/login_screen.dart';
 import 'firebase_options.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  await Firebase.initializeApp(
-    // 3. 이제 빨간 줄이 사라질 것입니다.
-    options: DefaultFirebaseOptions.currentPlatform,
+  final apiClient = ApiClient();
+  final taskFitApi = TaskFitApi(apiClient.dio);
+
+  runApp(
+    MultiProvider(
+      providers: [
+        Provider.value(value: taskFitApi),
+        ChangeNotifierProvider(create: (_) => TaskViewModel(api: taskFitApi)),
+      ],
+      child: const TaskFitApp(),
+    ),
   );
-  runApp(const TaskFitApp());
 }
 
 class TaskFitApp extends StatelessWidget {
@@ -21,13 +32,12 @@ class TaskFitApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '직무 시험 AI',
       debugShowCheckedModeBanner: false,
+      title: 'TaskFit',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3B5BFF)),
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF8F9FB),
-        fontFamily: 'Pretendard',
       ),
       home: const LoginScreen(),
     );

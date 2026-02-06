@@ -2,7 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:provider/provider.dart';
 
+import '../data/taskfit_api.dart';
 import '../serivce/auth_service.dart';
 import 'goal_setting_screen.dart';
 import '../main.dart';
@@ -29,8 +31,8 @@ class LoginScreen extends StatelessWidget {
               TextButton(
                 onPressed: () async {
                   // 실제 로그인 로직 호출
-                  User? user = await AuthService().signInWithGoogle();
-
+                  final api = Provider.of<TaskFitApi>(context, listen: false);
+                  User? user = await AuthService().signInWithGoogle(api);
                   if (user != null) {
                     // 로그인 성공 시 다음 화면으로 이동
                     if (context.mounted) {
